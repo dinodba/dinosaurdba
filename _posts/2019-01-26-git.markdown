@@ -1,0 +1,16 @@
+---
+layout: post
+title:  "Git"
+date:   2019-01-26 13:38:03 +0000
+permalink: /git
+---
+
+I've said already that I don't want to repeat other folk's great work. There are tutorials, documentation, videos and cheatsheets all over the place for git and GitHub. It's definitely something that we need to know how to use in this new world. It makes collaborative development so much better.
+
+I've read a lot of the documentation but I keep missunderstanding some of the fundamental features of git. Then there's the actual commands to run... However that'll come with more use. I've used git in work for a few years but I have a wee note of what commands I need to do what I need to do (pull, commit, push, merge). I've got forks of projects on our internal gitlab that I edit and raise merge requests, but I've never quite understood branching.
+
+So what I am going to put here is a link to some videos that have helped me a lot with understanding the basics. From there it'll be usage and experience that I'll learn more. I'll maybe update this post if anything useful and worth sharing turns up.
+
+* [Git Basics](https://www.youtube.com/playlist?list=PLg7s6cbtAD165JTRsXh8ofwRw0PqUnkVH) playlist on GitHub's own Training and Guides youtube channel
+* GitHub's own [Hello World](https://guides.github.com/activities/hello-world/) exercise. It's what they recommend you follow when you first sign up and it helped me understand branching. It's essentially just for editing the project when you don't want to create a separate project (fork). So it's a safer way to make edits to the project, especially if there are lots of people editing.
+

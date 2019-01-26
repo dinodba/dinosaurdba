@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Jekyll on GitHub Pages"
-date:   2019-01-26 13:38:03 +0000
+date:   2019-01-23 13:38:03 +0000
 permalink: /jekyll-on-github-pages
 ---
 
