@@ -1,0 +1,27 @@
+---
+layout: post
+title:  "Visual Studio Code"
+date:   2019-01-27 13:38:03 +0000
+permalink: /vscode
+---
+
+I confess I'm really a [Notepad++](https://notepad-plus-plus.org/) guy. But all the cool kids nowadays are using [Visual Studio Code](https://code.visualstudio.com/) from Microsoft so I will be too.
+
+I've actually been using it for a while at work. I still open Notepad++ more often but it has become really just a notepad/scratchpad nowadays. VSCode is where I do any ~~hacking~~ coding I need to do, especially in projects that are stored in a git repository somewhere. As a *nix and Oracle DBA the irony is not lost on me that a Microsoft product has become so popular. It's even good enough to warrant a mention on [twitter](https://twitter.com/dominic_giles/status/1088423676251389952) by Oracle Product Manager Dominic Giles so it must be good!
+
+I'll use this post to describe some of the features I learn about and use. I'll try to update it as I learn more things.
+
+### Workspaces
+Firstly, when I started documenting this journey to learn cloudy technologies and wanted to use VSCode like a developer I spent ages trying to work out if I needed separate Workspaces or not. I tried reading the documentation and searching online for any advice. Eventually I came across this [site](https://flaviocopes.com/vscode/#workspaces) that helped me understand a little better the benefit of workspaces but I still don't know enough about using VSCode to know if it's something that I needed. However it included the following line:
+> You can just work with folders until you have a specific reason for wanting a workspace.
+
+So I'm not using workspaces...
+
+### Terminal
+There's an integrated terminal within the editor. You can open from the Terminal menu (I think, mine is always open now and I'm scared to close it!). I use this more than I would have thought. When I run this blog locally for testing, I just do it in that terminal. I can see it updating when I save a file. I'm also using it to run my git commands when commiting and pushing the blog to GitHub. I'm hoping to learn a bit more about doing that within the Source Control area of VSCode though.
+
+### Source Control
+The Source Control tab shows me the status of my local git repo (used for this blog only at the moment). I've just come across [this page](https://scotch.io/tutorials/git-integration-in-visual-studio-code) from James Quick describing using this tab and it's very good. I've started to view his [VSCode playlist](https://www.youtube.com/playlist?list=PLDlWc9AfQBfZneYg7_KNOwCjy-AcJmtHb) on YouTube too and am learning even more.
+
+### Extensions
+I haven't really played with this much. I have a few at work that a colleague recommended. One of them must be git related as it shows me the user that made changes in files from git repos. 
