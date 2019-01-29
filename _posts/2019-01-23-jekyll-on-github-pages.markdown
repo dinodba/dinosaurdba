@@ -22,7 +22,7 @@ But then I talked to a colleague. He'd just started using Jekyll on GitHub pages
 
 So I had a look at Jekyll and GitHub pages. Jekyll doesn't use a database. As a database professional we weren't off to a good start :). But it's just flat files. That I can write in markdown (that's one of the things I want to learn) and upload to github (that's another thing I want to learn), and host on GitHub Pages (that's free). So why not give it a go? And here we are. And here are the steps.
 
-### <a name="steps"></a>The Steps
+### Steps
 
 I don't believe in repeating other people's work if it's useful so I'll link to the resources I've used and provide updates where necessary.
 
@@ -37,9 +37,16 @@ Mike's final video is the one for GitHub pages. He mentions that you need to upd
 
 I don't know if this is really Jekyll or just HTML but I had so much trouble getting anchor links within posts to work (the link at the top of this page to The Steps section). The format that worked for me is to put the anchor first:
 
-```### <a name="steps"></a>The Steps```
+```
+### <a name="steps"></a>The Steps
+```
 
 And then it's called as follows:
 
-```[Skip straight to the steps](#steps)```
+```
+[Skip straight to the steps](#steps)
+```
 
+**Update 29/01/2019**
+
+I didn't need to create a full tag. I've updated to make Steps a header in the markdown (`### Steps`) and this works as an achor. I didn't need to change the code at the top.

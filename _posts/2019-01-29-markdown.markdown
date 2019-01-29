@@ -11,3 +11,6 @@ Markdown is a markup language for plain text formatting. It's used to quickly an
 
 There are plenty of resources showing you how to use markdown and providing cheat sheets all over the web so I'm not going to go into any more detail or link to anything in particular. From my own experience I will say that I've used markdown many times over the past few years but never used it consistently. I still need to look up a cheat sheet just to do basic things like headings and lists. You'll be able to tell that my skills are improving if and when these blog posts get prettier ;-).
 
+**Update 29/01/2019**
+
+OK, I said I wouldn't post any links but I'm just watching this [video](https://www.youtube.com/watch?v=pTCROLZLhDM) by James Quick now and it's worth taking the time, even if just for the VSCode live view tip (Command+K then V).
