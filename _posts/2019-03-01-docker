@@ -1,0 +1,184 @@
+---
+layout: post
+title:  "Docker"
+date:   2019-03-11 19:38:03 +0000
+permalink: /docker
+---
+
+Skip my ramblings and jump straight to the tech stuff - [putting the python code from the previous post into a docker container](#steps)
+
+Docker. Where do I start? There'll be very few folk reading this that haven't heard of Docker. (I could have just stopped that sentence after the "very few folk reading this"!) But for some of us Dinosaur DBAs it's hard to know where it fits in and how to get started; at least it was for me.
+
+I played with Docker a few years ago. I got the whalesay app running (they're hello, world) and I even started a Ghost blog in docker. That was actually pretty cool and I could absolutely see the benefit of the product but I couldn't see how it was going to affect my working life. The beauty of Docker images is that they're small. Really small. That makes them easily transportable too. So for an application that, say, currently runs on several different application servers which themselves are virtual machines consuming measurable RAM, disk and CPU and requiring their own management of each of their operating systems, software layers and environment, moving to Docker containers removes a great deal of operational management. I totally get that.
+
+But I'm a DBA. Docker containers are immutable. You start them, they stop (on purpose or not) and when you start them they look exactly like they looked the first time you started them. Now what if it's a database in your container and you've taken a bunch of customer orders and your container stops and you lose all that data change? And my Oracle database software is several gigabytes in size - and that's before I even create the database and add even more gigabytes. Plus my database really needs a decent amount of RAM and CPU to be of any use. And when I started looking at Docker, Oracle absolutely did not support running the Oracle database in a Docker container. So I left it.
+
+The trouble is, my customers didn't. They really wanted to have some Oracle database capability within Docker containers. They actually legitimate development use cases. And they had Docker experience. So they did it themselves. That's the thin edge of the wedge for my job! I could keep ignoring this, and I did for a while, but the best approach is to help. I can definitely provide them with a smaller image and a better database - make life even better for them. Sadly, that's not what this post is about. My customers got what they needed (mostly) and they don't really need my help now and I still don't know enough about docker and registries and kubernetes to play in their league. This post is our introduction to Docker in a way we might better understand it. We'll hopefully get to databases in Docker and data persistence soon.
+
+Part of my trouble with Docker is I really need to have some understanding of how a technology works. I know how the Oracle database works. I need to know that to make sure I can install it; configure it; keep it secure; make sure it's resilient; back it up and restore it. Docker containers were this magical little virtual machine. Except they're not really a virtual machine. And I don't know enough about virtual machines to know the difference anyway. I've been through some of the Docker documentation but I still struggled. I've watched webinars and conference sessions talking about the difference between containers and VMs and layers and all that stuff they tell you to help you understand them but it wasn't enough and since it was still just black magic to me (like networking!) I couldn't get invested.
+
+Well, here's the talk that pulls back the curtain. [Cgroups, namespaces, and beyond: what are containers made from?](https://www.youtube.com/watch?v=sK5i-N34im8) by Jérôme Petazzoni at DockerCon EU in 2015. This helped me so much. If you've never played with Docker at all, go read the [Getting Started](https://docs.docker.com/get-started/) stuff in the Docker docs and follow along.
+
+And because I would like to contribute *something* other than opinion in this post, let's take the python code from my previous post and put it in a Docker container. This makes it portable and reusable. It'll still just work for Oracle databases but I'll be learning a bit more about python and a lot more about Docker.
+
+### Steps
+
+The first thing I did was take the code we already have and try to get this running in a container. There were a couple of things that made this a bit challenging than some websites led me to believe. There's a python base image we can build on - that should make things really easy. But we need to include tweepy and cx_Oracle, which needs an Oracle client. So I decided to build it all on a CentOS base image and yum install all the things I needed. No matter how hard I tried though, it would not install python-pip and therefore I couldn't pip install tweepy and cx_Oracle. It turns out, I couldn't yum install everything at the same time. I had to ensure epel-release was installed and then yum install python-pip and python-devel.
+
+I'm not going for super-efficient, minimum layers here, I just want to get it working. Here's the completed, working Dockerfile. We'll come back to the ENTRYPOINT and CMD lines at the end.
+
+``` docker
+
+# Pull centos image from Docker hub
+FROM centos
+
+# Install OS packages
+RUN yum -y install unzip libaio gcc-c++ tar make curl epel-release 
+RUN yum -y install python-pip python-devel
+
+
+# Add Oracle Instantclient
+ADD ./instantclient-basic-linux.x64-12.1.0.2.0.zip /tmp/
+
+RUN unzip -q /tmp/instantclient-basic-linux.x64-12.1.0.2.0.zip -d /opt/oracle/ \
+&& mv /opt/oracle/instantclient_12_1 /opt/oracle/instantclient \
+&& ln -s /opt/oracle/instantclient/libclntsh.so.12.1 /opt/oracle/instantclient/libclntsh.so\
+&& rm /tmp/instantclient-*\
+&& mkdir -p /usr/scr/app
+
+ENV LD_LIBRARY_PATH /opt/oracle/instantclient
+
+
+WORKDIR /usr/src/app
+
+RUN pip install  --no-cache-dir tweepy
+RUN pip install  --no-cache-dir cx_Oracle
+
+COPY . .
+
+ENTRYPOINT [ "python", "./stream.py" ]
+
+CMD [ "-p", "tony", "-u", "twitter_user", "-s", "ORADB12C", "-m", "ut011340", "-n", "1525", "-w", "oracle" ]
+```
+
+You need to ensure the instant client file is in the same directory as the Dockerfile as well as the stream.py file.
+
+Now for stream.py I wanted to add some parameter. I wanted to be able to set the at the very least the terms we'd be watching twitter for but if I was adding parameter anyway it made sense to take the database username, password, SID, host and port too. I did hard-code the API application keys and I've removed them here so you'll need to add your own if you re-use this code. Here's the final python code.
+
+``` python
+#import libraries
+from tweepy import Stream
+from tweepy import OAuthHandler
+from tweepy.streaming import StreamListener
+import cx_Oracle
+import datetime
+import json
+import argparse
+
+#parse arguments
+parser = argparse.ArgumentParser(description='Import live tweets to Oracle database')
+parser.add_argument('-p', action='store', dest='password', help="Password for database user", default="secret")
+parser.add_argument('-u', action='store', dest='username', help="Username for database user", default="twitter_user")
+parser.add_argument('-s', action='store', dest='sid', help="Database SID", default="ORCL")
+parser.add_argument('-m', action='store', dest='host', help="Database host", default="localhost")
+parser.add_argument('-n', action='store', dest='port', help="Database port", default="1521")
+parser.add_argument('-w', action='store', dest='words', help="Twitter search words", default="dinosaur")
+inputs = parser.parse_args()
+
+#connection string for database
+conn_str=inputs.username + '/' + inputs.password + '@' + inputs.host + ':' + inputs.port + '/' + inputs.sid
+
+#get me a connection
+conn =cx_Oracle.connect(conn_str)
+
+#turn on autocommit
+conn.autocommit=1
+
+#object for executing sql
+c=conn.cursor()
+
+#clob variable
+bvar=c.var(cx_Oracle.CLOB)
+
+#twitter api application keys
+#consumer key, consumer secret, access token, access secret.
+ckey='Dont'
+csecret='Tell'
+atoken='Anybody'
+asecret='The Password'
+
+#listen to the stream
+class listener(StreamListener):
+
+#get some
+    def on_data(self, data):
+         try:
+
+            #barf response insto json object
+            all_data = json.loads(data)
+
+            #parse out tweet text, screenname and tweet id
+            tweet = all_data["text"]
+            if (all_data["user"]["screen_name"]) is not None:
+                username = all_data["user"]["screen_name"]
+            else:
+                username = 'No User'
+            tid = all_data["id"]
+
+            #set clob variable to json doc
+            bvar.setvalue(0,data)
+            try:
+                #create sql string with bind for clob var
+
+                sql_str="INSERT INTO EAT_MY_TWEET (ID,USERNAME,TWEET_JSON) Values("+str(tid)+",q'["+username.encode('utf-8').strip()+"]',:EATIT)"
+
+                #insert into database
+                c.execute(sql_str,[bvar])
+
+            except Exception:
+                sys.exc_clear()
+
+            #watch tweets go by in console
+            print((username,tweet))
+
+            #in case you want to print response
+            #print(data)
+            return(True)
+         except Exception:
+            sys.exc_clear()
+    def on_error(self, status):
+        print status
+#     print(data)
+#     print sql_str
+
+#log in to twitter api
+auth = OAuthHandler(ckey, csecret)
+auth.set_access_token(atoken, asecret)
+
+#fire it up
+twitterStream = Stream(auth, listener())
+
+#what to search for (not case sensitive)
+#comma separated for words use
+# for hashtag
+#phrases are words separated by spaces (like this comment)
+twitterStream.filter(track=[inputs.words])
+```
+
+With all these files in the same directory I can build the Docker image using this command:
+```
+docker build -t my-stream-app .
+```
+
+And then I can run the container with all default parameters as follows:
+```
+docker run -it --rm --name my-running-app my-stream-app
+```
+
+And with parameter substitutions:
+```
+docker run -it --rm --name my-running-app my-stream-app -w oracle,docker,dinosaur
+```
+
+And voila. I'm really glad I did this as the machine my database and python script were on was time-limited and it was destroyed. It'll be really easy now for me to spin up a new database, create the user and table and run this container with new parameters.
+
