@@ -5,15 +5,15 @@ date:   2019-03-11 19:38:03 +0000
 permalink: /docker
 ---
 
-Skip my ramblings and jump straight to the tech stuff - [putting the python code from the previous post into a docker container](#steps)
+Skip my ramblings and jump straight to the tech stuff - [putting the python code from the previous post into a docker container.](#steps)
 
 Docker. Where do I start? There'll be very few folk reading this that haven't heard of Docker. (I could have just stopped that sentence after the "very few folk reading this"!) But for some of us Dinosaur DBAs it's hard to know where it fits in and how to get started; at least it was for me.
 
-I played with Docker a few years ago. I got the whalesay app running (they're hello, world) and I even started a Ghost blog in docker. That was actually pretty cool and I could absolutely see the benefit of the product but I couldn't see how it was going to affect my working life. The beauty of Docker images is that they're small. Really small. That makes them easily transportable too. So for an application that, say, currently runs on several different application servers which themselves are virtual machines consuming measurable RAM, disk and CPU and requiring their own management of each of their operating systems, software layers and environment, moving to Docker containers removes a great deal of operational management. I totally get that.
+I played with Docker a few years ago. I got the whalesay app running (their hello, world) and I even started a Ghost blog in docker. That was actually pretty cool and I could absolutely see the benefit of the product but I couldn't see how it was going to affect my working life. The beauty of Docker images is that they're small. Really small. That makes them easily transportable too. So for an application that, say, currently runs on several different application servers which themselves are virtual machines consuming measurable RAM, disk and CPU and requiring their own management of each of their operating systems, software layers and environment, moving to Docker containers removes a great deal of operational management. I totally get that.
 
 But I'm a DBA. Docker containers are immutable. You start them, they stop (on purpose or not) and when you start them they look exactly like they looked the first time you started them. Now what if it's a database in your container and you've taken a bunch of customer orders and your container stops and you lose all that data change? And my Oracle database software is several gigabytes in size - and that's before I even create the database and add even more gigabytes. Plus my database really needs a decent amount of RAM and CPU to be of any use. And when I started looking at Docker, Oracle absolutely did not support running the Oracle database in a Docker container. So I left it.
 
-The trouble is, my customers didn't. They really wanted to have some Oracle database capability within Docker containers. They actually legitimate development use cases. And they had Docker experience. So they did it themselves. That's the thin edge of the wedge for my job! I could keep ignoring this, and I did for a while, but the best approach is to help. I can definitely provide them with a smaller image and a better database - make life even better for them. Sadly, that's not what this post is about. My customers got what they needed (mostly) and they don't really need my help now and I still don't know enough about docker and registries and kubernetes to play in their league. This post is our introduction to Docker in a way we might better understand it. We'll hopefully get to databases in Docker and data persistence soon.
+The trouble is, my customers didn't. They really wanted to have some Oracle database capability within Docker containers. They actually have legitimate development use cases. And they had Docker experience. So they did it themselves. That's the thin edge of the wedge for them needing far less of my knowledge and experience! I could keep ignoring this, and I did for a while, but the best approach is to help. I can definitely provide them with a smaller image and a better database - make life even better for them. Sadly, that's not what this post is about. My customers got what they needed (mostly) and they don't really need my help now and I still don't know enough about docker and registries and kubernetes to play in their league. This post is our introduction to Docker in a way we might better understand it. We'll hopefully get to databases in Docker and data persistence soon.
 
 Part of my trouble with Docker is I really need to have some understanding of how a technology works. I know how the Oracle database works. I need to know that to make sure I can install it; configure it; keep it secure; make sure it's resilient; back it up and restore it. Docker containers were this magical little virtual machine. Except they're not really a virtual machine. And I don't know enough about virtual machines to know the difference anyway. I've been through some of the Docker documentation but I still struggled. I've watched webinars and conference sessions talking about the difference between containers and VMs and layers and all that stuff they tell you to help you understand them but it wasn't enough and since it was still just black magic to me (like networking!) I couldn't get invested.
 
@@ -25,7 +25,7 @@ And because I would like to contribute *something* other than opinion in this po
 
 The first thing I did was take the code we already have and try to get this running in a container. There were a couple of things that made this a bit challenging than some websites led me to believe. There's a python base image we can build on - that should make things really easy. But we need to include tweepy and cx_Oracle, which needs an Oracle client. So I decided to build it all on a CentOS base image and yum install all the things I needed. No matter how hard I tried though, it would not install python-pip and therefore I couldn't pip install tweepy and cx_Oracle. It turns out, I couldn't yum install everything at the same time. I had to ensure epel-release was installed and then yum install python-pip and python-devel.
 
-I'm not going for super-efficient, minimum layers here, I just want to get it working. Here's the completed, working Dockerfile. We'll come back to the ENTRYPOINT and CMD lines at the end.
+I'm not going for super-efficient, minimum layers here, I just want to get it working. Here's the completed, working Dockerfile. The ENTRYPOINT and CMD lines at the end are used to access our python script along with some parameters that we're going to add. More on that later.
 
 ``` docker
 
@@ -58,12 +58,12 @@ COPY . .
 
 ENTRYPOINT [ "python", "./stream.py" ]
 
-CMD [ "-p", "tony", "-u", "twitter_user", "-s", "ORADB12C", "-m", "ut011340", "-n", "1525", "-w", "oracle" ]
+CMD [ "-p", "secret", "-u", "twitter_user", "-s", "ORCL", "-m", "localhost", "-n", "1521", "-w", "dinosaur" ]
 ```
 
 You need to ensure the instant client file is in the same directory as the Dockerfile as well as the stream.py file.
 
-Now for stream.py I wanted to add some parameter. I wanted to be able to set the at the very least the terms we'd be watching twitter for but if I was adding parameter anyway it made sense to take the database username, password, SID, host and port too. I did hard-code the API application keys and I've removed them here so you'll need to add your own if you re-use this code. Here's the final python code.
+Now, for stream.py I wanted to add some parameters. I wanted to be able to set at the very least the terms we'd be watching twitter for but if I was adding parameters anyway it made sense to take the database username, password, SID, host and port too. I did hard-code the API application keys and I've removed them here so you'll need to add your own if you re-use this code. Here's the final python code.
 
 ``` python
 #import libraries
