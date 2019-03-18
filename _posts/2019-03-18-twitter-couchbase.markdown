@@ -25,10 +25,9 @@ curl -X POST -u Administrator:password http://cbhost:8091/pools/default/buckets 
 
 Now we need to prepare the python SDK for Couchbase.
 
-Docs [here](https://docs.couchbase.com/python-sdk/2.5/start-using-sdk.html)
+Docs [here](https://docs.couchbase.com/python-sdk/2.5/start-using-sdk.html).
 
-First step is to install the libcouchbase library. "It depends on the C SDK, libcouchbase, which it uses for performance and reliability."
-https://developer.couchbase.com/server/other-products/release-notes-archives/c-sdk
+First step is to install the libcouchbase library. "It depends on the C SDK, libcouchbase, which it uses for performance and reliability." Instructions [here](https://developer.couchbase.com/server/other-products/release-notes-archives/c-sdk).
 
 ```
 wget http://packages.couchbase.com/releases/couchbase-release/couchbase-release-1.0-4-x86_64.rpm
