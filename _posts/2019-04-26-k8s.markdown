@@ -1,0 +1,194 @@
+---
+layout: post
+title:  "Kubernetes"
+date:   2019-04-26 16:38:03 +0000
+permalink: /k8s
+---
+
+OK. Kubernetes. Or K8s. Where do I start? I've been struggling with K8s for a while now. I get that it's a platform for running your containerised apps. Oh, quick spoiler, this post will not cover stateful apps (databases) or persistent volumes on K8s. So, a platform you say? I've only ran a single container on a single machine. I've seen Docker Swarm examples where you need/want to run multiple containers together on the same network but I think you still commit to running on a single machine. K8s provides a platform to deploy your containers across many servers. You tell K8s what image to deploy and how many you want running and it makes sure that happens automagically.
+
+So from a platform perspective I understand what it provides (not fully, obviously, but enough to know why it exists and is so popular). But everything I've read and watched online tells me about the features of K8s and how to use it assuming it's been deployed for you (public cloud or turnkey on-premises solution). As an infrasturcture guy I couldn't get past not knowing what it looked like under the covers. I don't need to go very deep, I just wanted to find out how I install the thing myself and get it to run a container. And I just happen to have a container I can use too!
+
+My feeling was that if I could install and run K8s on my own VMs I'd break through the mental barrier I have and be able to understand K8s sufficiently to use cloud solutions or our on-premises offering. And then we start to look at persistent volumes and running databases there!
+
+Before I go on, here are a few links to things you can read or watch to get an overview of K8s if required:
+* [The Illustrated Children's Guide to Kubernetes](https://www.cncf.io/the-childrens-illustrated-guide-to-kubernetes/) comes highly recommended. It helped me a bit but I was still lost. I also didn't fully understand the benefit of pods as it suggests you're likely to only run one container in a pod at a time.
+* The [tutorial](https://kubernetes.io/docs/tutorials/kubernetes-basics/) on the Kubernetes website is pretty good.
+* There are [plenty](https://www.google.com/search?q=k8s+for+dummies) other intros to K8s all over the place.
+* Something I watched most recently and gave me the help I needed to understand pods was a talk by Carson Anderson available [here](https://vimeo.com/245778144/4d1d597c5e). Within the first 4 minutes I finally got the point of pods.
+
+Now, back to the original plan - build my own K8s cluster. A bit of googling and I came across this great [article](https://myopswork.com/how-to-install-kubernetes-k8-in-rhel-or-centos-in-just-7-steps-2b78331174a5) from Aravind on how to do exactly that. I tried following it exactly but I had problems with the CentOS repo on RHEL thing so used CentOS machines instead. I'm going to reproduce what Aravind wrote here. I don't normally do that but I had to make a couple of changes to get it working and I'd like a single source to reproduce it all.
+
+## Prepare 2 CentOS 7 machines
+
+Disable swap
+```
+swapoff -a
+sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
+```
+
+Install docker on both machines
+```
+yum -y update 
+yum -y install docker
+systemctl enable docker
+systemctl start docker
+```
+
+Install K8s on both machines
+```
+cat <<EOF > /etc/yum.repos.d/kubernetes.repo
+[kubernetes]
+name=Kubernetes
+baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+EOF
+setenforce 0
+yum -y install kubelet kubeadm kubectl
+systemctl start kubelet
+systemctl enable kubelet
+```
+
+Fix SELINUX if necessary on both machines
+```
+vi /etc/selinux/config
+     SELINUX=permissive ##Change if it is enforceing
+```
+
+Some hacks for reasons
+```
+cat <<EOF >  /etc/sysctl.d/k8s.conf
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+EOF
+sysctl --system
+echo 1 > /proc/sys/net/ipv4/ip_forward
+```
+
+## Following steps should be carried out on the master node only
+
+Configure and Enable Networking to the cluster
+```
+kubeadm init --pod-network-cidr=10.244.0.0/16
+```
+
+Output will be something similar to the following:
+```
+Your Kubernetes control-plane has initialized successfully!
+
+To start using your cluster, you need to run the following as a regular user:
+
+  mkdir -p $HOME/.kube
+  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+  sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+You should now deploy a pod network to the cluster.
+Run "kubectl apply -f [podnetwork].yaml" with one of the options listed at:
+  https://kubernetes.io/docs/concepts/cluster-administration/addons/
+
+Then you can join any number of worker nodes by running the following on each as root:
+
+kubeadm join 10.74.55.2:6443 --token pb7yrw.mzftioym0fg4hx6a \
+    --discovery-token-ca-cert-hash sha256:b6f29385d1ea6df06c8968e174faf595ec4bd0969092b29dc04fd2e6cd942c7a
+```
+
+Create an OS user
+```
+adduser dinodba
+passwd dinodba
+```
+Give sudo privs
+```
+gpasswd -a dinodba wheel
+```
+
+Run on the master as the dinodba user
+```
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+```
+
+## On the master node only
+
+Enable the Kubernetes cluster using flannel to get the config in yaml.<br>
+The link supplied by Aravind didn't work for me. I found the correct link on the K8s [website](https://kubernetes.io/docs/setup/independent/create-cluster-kubeadm/#pod-network). It's actually part of their instructions to do this kind of install - it's just not as easy to follow as Aravind's article.
+
+The command that worked for me is below. You should confirm the URL is still correct on the K8s website.
+```
+kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/a70459be0084506e4ec919aa1c114638878db11b/Documentation/kube-flannel.yml
+```
+
+Verify the cluser
+```
+kubectl get nodes
+```
+
+Now run the join command from the master setup **on the worker node**.
+```
+kubeadm join 10.0.2.203:6443 --token 49ub6n.b97ie9hxthvfyjtx --discovery-token-ca-cert-hash sha256:09e35eb11e535c64171d50059a584ea209a8d2479d00de30c566f47dbc7128cf
+```
+
+Verify on the **master**:
+```
+kubectl get nodes
+
+NAME                         STATUS    ROLES     AGE       VERSION
+ip-10-0-0-139.vpc.internal   Ready     <none>    25s       v1.11.1
+ip-10-0-2-203.vpc.internal   Ready     master    17h       v1.11.1
+```
+
+## It's working!
+It wasn't that easy for me. I had issues with swap not being disabled. I also had the flannel networking challenge. But we got there.
+
+Now we want to deploy our container to our K8s platform. I don't want to go to the hassle of putting my container in a registry and pulling from that registry at this stage. 
+
+I used the container from my own [docker](https://dinodba.github.io/dinosaurdba/docker) post that grabs twitter tweets and inserts them into an Oracle database. I had to spin up a database (thankfully quick and easy where I am) as my previous one had been destroyed and then I copied the stream.py, Dockerfile and instant client software to the K8s cluser and built the image. I ran it locally in docker to check it worked before attempting to deploy on K8s.
+
+## Prepare K8s deployment yaml
+
+Via a bit of googling I've now lost I found a simple yaml example:
+
+#### Create pod.yaml file:
+```
+---
+ apiVersion: v1
+ kind: Pod
+ metadata:
+   name: tweet-capture
+   labels:
+     app: python
+ spec:
+   containers:
+     - name: stream
+       image: my-stream-app
+       args: ["-s", "ORCL", "-m", "diplodicus.dinodba.com", "-n", "1521", "-w", "oracle,docker,dinosaur"]
+       imagePullPolicy: Never
+```
+And then this is deployed with a simple command:
+```
+kubectl create -f pod.yaml
+```
+And the status can be viewed with the following command:
+```
+kubectl describe pod tweet-capture
+```
+And you can view logs with this command:
+```
+kubectl logs tweet-capture
+```
+
+## Issues
+What you're reading is the working example. It wasn't that easy for me. Firstly the deploy didn't work. 
+#### Build the image on all nodes
+I was getting ```ErrImagePull``` and then ```ImagePullBackOff``` errors that took me too long to diagnose. It should be getting the image locally but it wasn't finding it. Eventually a google search led me to the obvious information that the docker image only existed on the master node at this point. I'm running the ```kubectl create``` command on the master node but the master node is scheduling the pod on the worker node and the worker node doesn't have access to the image. The simple fix was to build the image on the worker node too.
+Incidentally, these messages were available in the ```describe pod``` output.
+#### args
+I forgot to include the arguments. So once the pod was successfully deployed it didn't work. The output of ```kubectl logs``` showed that it couldn't find the database. Now I had to work out how to pass these arguments to K8s. A wee bit of googling and some trial and error got me to what you see above.
+
+## Next Steps
+I'd like to play with this a wee bit more before I move away from my own K8s deployment. Maybe scale things. Or put the DB in a container too. This has been the breakthrough I needed for K8s. I'll be a lot more confident using a K8s platform now and I have no interest in continuing to manage my own! 
+
